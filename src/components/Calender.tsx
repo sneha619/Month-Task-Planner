@@ -4,6 +4,7 @@ import { Task, DragState, TaskCategory } from '../types';
 import { getCalendarDays, getDaysBetween } from '../utils/dateUtils';
 import TaskBar from './TaskBar';
 import TaskModal from './TaskModal';
+import TaskDetailView from './TaskDetailView';
 
 interface CalendarProps {
   currentDate: Date;
@@ -26,6 +27,8 @@ const Calendar: React.FC<CalendarProps> = ({ currentDate, tasks, onTaskUpdate, o
     startDate: null as Date | null,
     endDate: null as Date | null
   });
+  
+  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
 
   const calendarRef = useRef<HTMLDivElement>(null);
   const days = getCalendarDays(currentDate);
@@ -74,6 +77,11 @@ const Calendar: React.FC<CalendarProps> = ({ currentDate, tasks, onTaskUpdate, o
       endDate: task.endDate,
       taskId: task.id
     });
+  }, []);
+  
+  const handleTaskClick = useCallback((e: React.MouseEvent, task: Task) => {
+    e.stopPropagation();
+    setSelectedTask(task);
   }, []);
 
   const handleMouseMove = useCallback((e: MouseEvent) => {
@@ -226,26 +234,36 @@ const Calendar: React.FC<CalendarProps> = ({ currentDate, tasks, onTaskUpdate, o
 
   return (
     <>
-      <div ref={calendarRef} className="flex-1 bg-white relative select-none">
-        {/* Header */}
+      <div className="flex-1 bg-white relative select-none overflow-auto" ref={calendarRef}>
+        {/* Mobile helper message */}
+        <div className="md:hidden bg-blue-50 p-2 text-center text-xs text-blue-700 border-b border-blue-100">
+          Tap on a task to view details
+        </div>
+        
+        {/* Calendar grid */}
         <div className="grid grid-cols-7 border-b border-gray-200 bg-gray-50">
           {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
-            <div key={day} className="p-2 text-center font-medium text-gray-700">
+            <div key={day} className="p-1 sm:p-2 text-center text-xs sm:text-sm font-medium text-gray-700">
               {day}
             </div>
           ))}
         </div>
 
         {/* Calendar Grid */}
-        <div className="grid grid-cols-7 flex-1" style={{ minHeight: '600px' }}>
+        <div className="grid grid-cols-7 flex-1 relative" style={{ minHeight: '600px' }}>
           {days.map((day: Date, index: number) => {
-            const dayTasks = getTasksForDay(day);
             const isCurrentMonth = day.getMonth() === currentDate.getMonth();
             const isDragStart = dragState.startDate && isSameDay(day, dragState.startDate);
             const isDragEnd = dragState.endDate && isSameDay(day, dragState.endDate);
             const isDragBetween = dragState.startDate && dragState.endDate && 
-              day >= new Date(Math.min(dragState.startDate.getTime(), dragState.endDate.getTime())) && 
-              day <= new Date(Math.max(dragState.startDate.getTime(), dragState.endDate.getTime()));
+              index >= Math.min(
+                days.findIndex(d => isSameDay(d, dragState.startDate!)),
+                days.findIndex(d => isSameDay(d, dragState.endDate!))
+              ) && 
+              index <= Math.max(
+                days.findIndex(d => isSameDay(d, dragState.startDate!)),
+                days.findIndex(d => isSameDay(d, dragState.endDate!))
+              );
             
             return (
               <div
@@ -255,56 +273,66 @@ const Calendar: React.FC<CalendarProps> = ({ currentDate, tasks, onTaskUpdate, o
                 } ${isToday(day) ? 'bg-blue-50' : ''} ${
                   isDragStart || isDragEnd ? 'bg-blue-100' : ''
                 } ${isDragBetween && !isDragStart && !isDragEnd ? 'bg-blue-50' : ''}`}
-                onMouseDown={(e) => handleMouseDown(e, day)}
-                style={{ minHeight: '100px' }}
+                onMouseDown={(e) => {
+                  // Only handle mouse down if clicking directly on the day cell, not on a task
+                  if (e.target === e.currentTarget) {
+                    handleMouseDown(e, day);
+                  }
+                }}
+                style={{ minHeight: 'calc(12vh)', maxHeight: 'calc(16vh)', height: '80px' }}
               >
-                <div className={`text-sm font-medium ${isToday(day) ? 'text-blue-600' : ''}`}>
+                <div className={`text-xs sm:text-sm font-medium ${isToday(day) ? 'text-blue-600' : ''}`}>
                   {format(day, 'd')}
                 </div>
-                
-                {/* Render tasks */}
-                {dayTasks.map((task, taskIndex) => {
-                  const taskStartIndex = days.findIndex((d: Date) => isSameDay(d, task.startDate));
-                  const taskEndIndex = days.findIndex((d: Date) => isSameDay(d, task.endDate));
-                  
-                  // Only render task bar on the first day of the task
-                  if (index !== taskStartIndex) return null;
-                  
-                  const startRow = Math.floor(taskStartIndex / 7);
-                  const startCol = taskStartIndex % 7;
-                  const endRow = Math.floor(taskEndIndex / 7);
-                  const endCol = taskEndIndex % 7;
-                  
-                  // For multi-row tasks, render separate bars for each row
-                  const taskBars = [];
-                  
-                  for (let row = startRow; row <= endRow; row++) {
-                    const colStart = row === startRow ? startCol : 0;
-                    const colEnd = row === endRow ? endCol : 6;
-                    
-                    // Calculate width based on the number of days in this row
-                    const width = ((colEnd - colStart + 1) / 7) * 100;
-                    
-                    taskBars.push(
-                      <TaskBar
-                        key={`${task.id}-${row}`}
-                        task={task}
-                        startDate={day}
-                        onDragStart={handleTaskDragStart}
-                        style={{
-                          position: 'absolute',
-                          left: '2px',
-                          width: `calc(${width}% - 4px)`,
-                          top: `${20 + taskIndex * 28}px`,
-                        }}
-                      />
-                    );
-                  }
-                  
-                  return taskBars;
-                })}
               </div>
             );
+          })}
+          
+          {/* Render all tasks as continuous bars */}
+          {tasks.map((task, taskIndex) => {
+            const taskStartIndex = days.findIndex((d: Date) => isSameDay(d, task.startDate));
+            const taskEndIndex = days.findIndex((d: Date) => isSameDay(d, task.endDate));
+            
+            if (taskStartIndex === -1 || taskEndIndex === -1) return null;
+            
+            const startRow = Math.floor(taskStartIndex / 7);
+            const startCol = taskStartIndex % 7;
+            const endRow = Math.floor(taskEndIndex / 7);
+            const endCol = taskEndIndex % 7;
+            
+            const taskBars = [];
+            
+            // Calculate cell dimensions
+            const cellWidth = 100 / 7; // Each cell is 1/7 of the container width
+            const cellHeight = 80; // Height of each day cell
+            
+            for (let row = startRow; row <= endRow; row++) {
+              const colStart = row === startRow ? startCol : 0;
+              const colEnd = row === endRow ? endCol : 6;
+              
+              const left = colStart * cellWidth;
+              const width = (colEnd - colStart + 1) * cellWidth;
+              const top = row * cellHeight + 18 + (taskIndex % 3) * 28; // Stack multiple tasks
+              
+              taskBars.push(
+                <TaskBar
+                  key={`${task.id}-${row}`}
+                  task={task}
+                  startDate={task.startDate}
+                  onDragStart={handleTaskDragStart}
+                  onClick={handleTaskClick}
+                  style={{
+                    position: 'absolute',
+                    left: `${left}%`,
+                    width: `${width}%`,
+                    top: `${top}px`,
+                    zIndex: 10,
+                  }}
+                />
+              );
+            }
+            
+            return taskBars;
           })}
         </div>
 
@@ -316,6 +344,15 @@ const Calendar: React.FC<CalendarProps> = ({ currentDate, tasks, onTaskUpdate, o
         isOpen={modalState.isOpen}
         onClose={() => setModalState({ isOpen: false, startDate: null, endDate: null })}
         onSave={handleModalSave}
+      />
+
+      <TaskDetailView
+        task={selectedTask}
+        onClose={() => setSelectedTask(null)}
+        onEdit={() => {
+          // If needed, implement edit functionality here
+          setSelectedTask(null);
+        }}
       />
     </>
   );

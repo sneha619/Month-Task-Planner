@@ -23,17 +23,17 @@ const App: React.FC = () => {
   const filteredTasks = getFilteredTasks();
 
   return (
-    <div className="h-screen flex bg-gray-100">
+    <div className="h-screen flex flex-col sm:flex-row bg-gray-100 overflow-hidden">
       <FilterSidebar filters={filters} onFiltersChange={setFilters} />
       
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col overflow-auto">
         {/* Header */}
-        <div className="bg-white border-b border-gray-200 p-4">
-          <div className="flex justify-between items-center">
-            <h1 className="text-2xl font-bold text-gray-900">
+        <div className="bg-white border-b border-gray-200 p-2 sm:p-4">
+          <div className="flex flex-col sm:flex-row justify-between items-center space-y-2 sm:space-y-0">
+            <h1 className="text-xl sm:text-2xl font-bold text-gray-900">
               {format(currentDate, 'MMMM yyyy')}
             </h1>
-            <div className="flex space-x-2">
+            <div className="flex space-x-1 sm:space-x-2">
               <button 
                 onClick={goToPreviousMonth}
                 className="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300 transition-colors"

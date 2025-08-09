@@ -9,10 +9,11 @@ interface TaskBarProps {
   task: Task;
   startDate: Date;
   onDragStart: (e: React.MouseEvent, task: Task, dragType: 'move' | 'resize-start' | 'resize-end') => void;
+  onClick?: (e: React.MouseEvent, task: Task) => void;
   style?: React.CSSProperties;
 }
 
-const TaskBar: React.FC<TaskBarProps> = ({ task, startDate, onDragStart, style }) => {
+const TaskBar: React.FC<TaskBarProps> = ({ task, startDate, onDragStart, onClick, style }) => {
   const getCategoryColor = (category: string) => {
     switch (category) {
       case 'To Do': return 'bg-blue-500';
@@ -27,32 +28,15 @@ const TaskBar: React.FC<TaskBarProps> = ({ task, startDate, onDragStart, style }
 
   return (
     <div
-      className={`absolute h-6 ${getCategoryColor(task.category)} text-white text-xs rounded px-2 flex items-center cursor-move select-none z-10`}
+      className={`h-6 ${getCategoryColor(task.category)} text-white text-xs rounded px-2 flex items-center cursor-move select-none shadow-sm hover:brightness-110 transition-all`}
       style={style}
       onMouseDown={(e) => onDragStart(e, task, 'move')}
+      onClick={(e) => onClick && onClick(e, task)}
       title={`${task.name} (${task.category})`}
     >
-      {/* Resize handle - left */}
-      <div
-        className="absolute left-0 top-0 w-2 h-full cursor-ew-resize hover:bg-black hover:bg-opacity-20"
-        onMouseDown={(e) => {
-          e.stopPropagation();
-          onDragStart(e, task, 'resize-start');
-        }}
-      />
-      
-      <span className="truncate flex-1 pointer-events-none">
+      <span className="truncate font-medium text-xs w-full text-center">
         {task.name}
       </span>
-      
-      {/* Resize handle - right */}
-      <div
-        className="absolute right-0 top-0 w-2 h-full cursor-ew-resize hover:bg-black hover:bg-opacity-20"
-        onMouseDown={(e) => {
-          e.stopPropagation();
-          onDragStart(e, task, 'resize-end');
-        }}
-      />
     </div>
   );
 };

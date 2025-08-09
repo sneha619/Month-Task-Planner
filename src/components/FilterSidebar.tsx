@@ -26,7 +26,7 @@ const FilterSidebar: React.FC<FilterSidebarProps> = ({ filters, onFiltersChange 
   };
 
   return (
-    <div className="w-64 bg-gray-50 p-4 border-r border-gray-200">
+    <div className="sm:w-64 bg-gray-50 p-3 sm:p-4 border-b sm:border-b-0 sm:border-r border-gray-200 overflow-auto flex-shrink-0">
       <h2 className="text-lg font-semibold mb-4">Filters</h2>
       
       <div className="mb-6">
